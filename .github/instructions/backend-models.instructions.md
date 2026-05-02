@@ -52,12 +52,48 @@ export default Entity;
 
 ## ⚠️ REGLA CRÍTICA — Hook de bcrypt: `beforeValidate`, NUNCA `beforeCreate`
 
-**Por qué**: Sequelize ejecuta `beforeValidate → validate(allowNull) → beforeCreate → INSERT`.
-Si el hash de la contraseña se calcula en `beforeCreate`, la validación `allowNull: false`
-ya ha fallado antes con `null`. Resultado: `SequelizeValidationError: notNull Violation`.
+**Por qué** (razón doble, ambas aplican independientemente del esquema):
+
+### Razón 1 — campo VIRTUAL `password` → columna real `passwordHash`
+
+Este era el escenario original: `password` era `DataTypes.VIRTUAL` y el hash se guardaba en
+`passwordHash` (columna real con `allowNull: false`). Si el hash se calculaba en `beforeCreate`,
+la validación de `allowNull: false` sobre `passwordHash` ya había fallado antes porque el campo
+seguía siendo `null`. Orden de ejecución de Sequelize:
+
+```
+beforeValidate → validate(allowNull) → beforeCreate → INSERT
+```
+
+Resultado sin `beforeValidate`: `SequelizeValidationError: notNull Violation`.
+
+### Razón 2 — `password` como columna real (esquema actual)
+
+Con `password: DataTypes.STRING, allowNull: false`, la validación de `allowNull` ya no es un
+problema porque el valor en texto plano existe desde el principio. Sin embargo, **`beforeCreate`
+solo se ejecuta en INSERT**, no en UPDATE.
+
+Si en algún momento se actualiza la contraseña con `user.save()` o `user.update()`, el hook
+`beforeCreate` **no se dispara** y la contraseña se guardaría en texto plano:
 
 ```typescript
-// ✅ CORRECTO — el hash existe cuando Sequelize valida allowNull: false
+user.password = 'nuevaContraseña';
+await user.save();  // ← beforeCreate NO se ejecuta, contraseña sin hashear en BD
+```
+
+`beforeValidate` se ejecuta tanto en creación como en actualización, cubriendo ambos casos.
+
+### Conclusión
+
+Usar `beforeValidate` es la elección correcta en **ambos esquemas** por razones distintas:
+
+| Escenario | Por qué `beforeValidate` |
+|-----------|--------------------------|
+| `password` VIRTUAL + `passwordHash` real | `passwordHash` es `null` durante `validate(allowNull)` si se usa `beforeCreate` |
+| `password` columna real (esquema actual) | `beforeCreate` no se dispara en updates; contraseña quedaría en texto plano al cambiarla |
+
+```typescript
+// ✅ CORRECTO — cubre creación Y actualización
 hooks: {
   beforeValidate: async (user: User) => {
     if (user.changed('password') && user.password && !user.password.startsWith('$2')) {
@@ -67,10 +103,10 @@ hooks: {
   },
 },
 
-// ❌ INCORRECTO — password aún es null durante la validación
+// ❌ INCORRECTO — solo cubre creación; las actualizaciones de contraseña se guardan en texto plano
 hooks: {
   beforeCreate: async (user: User) => {
-    user.password = await bcryptjs.hash(user.password, 10); // ← llega null
+    user.password = await bcryptjs.hash(user.password, 10);
   },
 },
 ```

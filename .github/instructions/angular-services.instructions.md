@@ -58,40 +58,82 @@ export class AgentWizardComponent { ... }
 
 ## Estructura estándar de un servicio
 
+Todos los servicios de dominio (agentes, documentos, conversaciones…) deben inyectar `ApiService`
+en lugar de `HttpClient` directamente. `ApiService` ya gestiona `baseUrl` y es el único
+punto de configuración de la URL base.
+
 ```typescript
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { ApiService } from './api.service';
 
 @Injectable({
   providedIn: 'root'  // singleton global — válido para el 90% de los servicios de este proyecto
 })
 export class MyEntityService {
-  private http = inject(HttpClient);
-  private apiUrl = environment.apiUrl;
+  private readonly api = inject(ApiService); // ← inyectar ApiService, no HttpClient
 
   getAll(): Observable<MyEntity[]> {
-    return this.http.get<MyEntity[]>(`${this.apiUrl}/endpoint`);
+    return this.api.get<MyEntity[]>('/endpoint');
   }
 
   getById(id: number): Observable<MyEntity> {
-    return this.http.get<MyEntity>(`${this.apiUrl}/endpoint/${id}`);
+    return this.api.get<MyEntity>(`/endpoint/${id}`);
   }
 
   create(data: Partial<MyEntity>): Observable<MyEntity> {
-    return this.http.post<MyEntity>(`${this.apiUrl}/endpoint`, data);
+    return this.api.post<MyEntity>('/endpoint', data);
   }
 
   update(id: number, data: Partial<MyEntity>): Observable<MyEntity> {
-    return this.http.put<MyEntity>(`${this.apiUrl}/endpoint/${id}`, data);
+    return this.api.put<MyEntity>(`/endpoint/${id}`, data);
   }
 
   delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/endpoint/${id}`);
+    return this.api.delete<void>(`/endpoint/${id}`);
   }
 }
 ```
+
+### ✅ Patrón correcto — `agent.service.ts` como referencia
+
+```typescript
+// ✅ CORRECTO — delegar en ApiService
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { ApiService } from './api.service';
+import { Agent } from '../models';
+
+@Injectable({ providedIn: 'root' })
+export class AgentService {
+  private readonly api = inject(ApiService);
+
+  getAgents(): Observable<Agent[]> {
+    return this.api.get<Agent[]>('/agents');
+  }
+
+  getAgent(id: number): Observable<Agent> {
+    return this.api.get<Agent>(`/agents/${id}`);
+  }
+}
+
+// ❌ INCORRECTO — inyectar HttpClient y duplicar baseUrl
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+
+@Injectable({ providedIn: 'root' })
+export class AgentService {
+  private http = inject(HttpClient);       // ← no usar directamente
+  private apiUrl = environment.apiUrl;    // ← duplicación innecesaria
+
+  getAgents(): Observable<Agent[]> {
+    return this.http.get<Agent[]>(`${this.apiUrl}/agents`);
+  }
+}
+```
+
+> **Excepción:** `AuthService` y `ApiService` sí pueden inyectar `HttpClient` directamente
+> porque son servicios de infraestructura base, no de dominio.
 
 ---
 
@@ -193,13 +235,19 @@ export interface ChatResponse {
 
 ## Uso de `environment.apiUrl`
 
-```typescript
-// ✅ CORRECTO — siempre usar environment.apiUrl como base
-private apiUrl = environment.apiUrl; // 'http://localhost:3000'
+`ApiService` ya centraliza `environment.apiUrl`. Los servicios de dominio **no** deben
+declarar `apiUrl` ni importar `environment` — eso es responsabilidad exclusiva de `ApiService`.
 
+```typescript
+// ✅ CORRECTO — ApiService gestiona la baseUrl
+this.api.get('/agents')          // rutas relativas, sin baseUrl
+this.api.post('/agents', data)
+
+// ❌ INCORRECTO — duplicar la baseUrl en cada servicio
+private apiUrl = environment.apiUrl;
 this.http.get(`${this.apiUrl}/agents`)
 
-// ❌ INCORRECTO — nunca hardcodear la URL
+// ❌ INCORRECTO — hardcodear la URL
 this.http.get('http://localhost:3000/agents')
 ```
 

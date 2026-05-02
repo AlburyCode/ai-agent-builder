@@ -1,0 +1,78 @@
+<div class="documents-container">
+  <div class="header">
+    <h2>Documentos del Agente</h2>
+    <button mat-button routerLink="/agents">
+      <mat-icon>arrow_back</mat-icon> Volver a agentes
+    </button>
+  </div>
+
+  <mat-card class="upload-card">
+    <mat-card-content>
+      <p class="upload-info">
+        Los archivos se envían directamente a OpenAI. Solo guardamos el identificador en nuestra base de datos.
+      </p>
+
+      <div class="upload-zone">
+        <label for="fileInput" mat-raised-button color="accent" class="upload-label">
+          <mat-icon>upload_file</mat-icon>
+          Subir documento
+        </label>
+        <input
+          id="fileInput"
+          type="file"
+          accept=".pdf,.doc,.docx,.txt"
+          class="file-input-hidden"
+          (change)="onFileSelected($event)"
+          [disabled]="isUploading" />
+        <span class="upload-hint">PDF, DOC, DOCX o TXT</span>
+      </div>
+
+      <mat-progress-bar *ngIf="isUploading" mode="indeterminate" class="upload-progress"></mat-progress-bar>
+    </mat-card-content>
+  </mat-card>
+
+  <p *ngIf="documents.length === 0 && !isUploading" class="empty-message">
+    No hay documentos. Sube el primero para entrenar al agente.
+  </p>
+
+  <mat-card *ngIf="documents.length > 0">
+    <table mat-table [dataSource]="documents" class="full-width">
+
+      <!-- Nombre -->
+      <ng-container matColumnDef="fileName">
+        <th mat-header-cell *matHeaderCellDef>Nombre</th>
+        <td mat-cell *matCellDef="let doc">{{ doc.fileName }}</td>
+      </ng-container>
+
+      <!-- Tipo -->
+      <ng-container matColumnDef="fileType">
+        <th mat-header-cell *matHeaderCellDef>Tipo</th>
+        <td mat-cell *matCellDef="let doc">{{ doc.fileType }}</td>
+      </ng-container>
+
+      <!-- Fecha -->
+      <ng-container matColumnDef="createdAt">
+        <th mat-header-cell *matHeaderCellDef>Fecha</th>
+        <td mat-cell *matCellDef="let doc">{{ doc.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+      </ng-container>
+
+      <!-- Acciones -->
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let doc">
+          <button
+            mat-icon-button
+            color="warn"
+            (click)="deleteDocument(doc)"
+            [disabled]="deletingId === doc.id"
+            matTooltip="Eliminar">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </mat-card>
+</div>

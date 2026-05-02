@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Widget</title>
+</head>
+<body>
+  <h1>Página de prueba del widget</h1>
+  <p>Esta es una web de ejemplo donde probaremos el widget embebido.</p>
+
+  <!-- Lee los query params enviados por el backoffice (?agentId=X&color=...&...) -->
+  <!-- y los expone como window.__AI_WIDGET_CONFIG__ con prioridad sobre data-* -->
+  <script>
+    const p = new URLSearchParams(location.search);
+    if (p.get('agentId')) {
+      window.__AI_WIDGET_CONFIG__ = {
+        agentId:  p.get('agentId'),
+        color:    p.get('color')    || '#1976d2',
+        position: p.get('position') || 'bottom-right',
+        title:    p.get('title')    || '¿En qué puedo ayudarte?'
+      };
+    }
+  </script>
+
+  <script
+    src="/src/widget.js"
+    data-agent-id="1"
+    data-color="#1976d2"
+    data-position="bottom-right"
+    data-title="¿En qué puedo ayudarte?">
+  </script>
+</body>
+</html>

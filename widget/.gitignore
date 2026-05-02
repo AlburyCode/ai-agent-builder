@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output (Vite)
+dist/
+
+# Environment variables — NUNCA subir al repo
+.env
+.env.local
+.env.*.local
+
+# Vite cache
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+*.sw?

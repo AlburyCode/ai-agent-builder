@@ -1,0 +1,76 @@
+<div class="widget-config-container">
+  <div class="header">
+    <button mat-button routerLink="/agents">
+      <mat-icon>arrow_back</mat-icon> Volver a agentes
+    </button>
+    <h1>Configuración del Widget</h1>
+  </div>
+
+  <mat-card class="config-card">
+    <mat-card-header>
+      <mat-card-title>Personaliza tu widget de chat</mat-card-title>
+      <mat-card-subtitle>Ajusta la apariencia del widget que se mostrará en tu web</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="form" class="config-form">
+
+        <div class="form-field color-field">
+          <label class="color-label">Color principal</label>
+          <div class="color-input-group">
+            <input type="color" formControlName="primaryColor" class="color-picker" />
+            <span class="color-hex">{{ form.value.primaryColor }}</span>
+          </div>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Posición</mat-label>
+          <mat-select formControlName="position">
+            <mat-option value="bottom-right">Abajo a la derecha</mat-option>
+            <mat-option value="bottom-left">Abajo a la izquierda</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Título del widget</mat-label>
+          <input matInput formControlName="title" placeholder="Chat con nosotros" />
+        </mat-form-field>
+
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="snippet-card">
+    <mat-card-header>
+      <mat-card-title>Código de instalación</mat-card-title>
+      <mat-card-subtitle>Pega este script justo antes de <code>&lt;/body&gt;</code> en tu web</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="code-box">
+        <pre><code>{{ snippetCode }}</code></pre>
+      </div>
+
+      <div class="copy-row">
+        <button mat-raised-button color="primary" (click)="copySnippet()">
+          <mat-icon>content_copy</mat-icon>
+          Copiar código
+        </button>
+        <button mat-raised-button color="accent" (click)="openPreview()">
+          <mat-icon>open_in_new</mat-icon>
+          Probar widget
+        </button>
+      </div>
+
+      <div class="instructions">
+        <h3>Instrucciones de uso</h3>
+        <ol>
+          <li>Copia el código de arriba.</li>
+          <li>Pégalo en el HTML de tu web, justo antes de <code>&lt;/body&gt;</code>.</li>
+          <li>El widget aparecerá automáticamente en la esquina elegida.</li>
+          <li>Asegúrate de que tu widget server (<code>localhost:5173</code>) está corriendo, o sustituye la URL por la URL de producción.</li>
+        </ol>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
