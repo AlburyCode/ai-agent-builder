@@ -1,0 +1,72 @@
+<div class="chat-container">
+
+  <!-- Header -->
+  <div class="header">
+    <h2>Chat con el Agente</h2>
+    <button mat-button routerLink="/agents">
+      <mat-icon>arrow_back</mat-icon> Volver a agentes
+    </button>
+  </div>
+
+  <!-- Messages area -->
+  <div class="messages-area">
+
+    <!-- Loading history -->
+    <div *ngIf="isLoadingHistory" class="history-loading">
+      Cargando historial...
+    </div>
+
+    <div
+      *ngFor="let msg of messages"
+      class="bubble-wrapper"
+      [class.user-wrapper]="msg.role === 'user'"
+      [class.assistant-wrapper]="msg.role === 'assistant'"
+    >
+      <div
+        class="bubble"
+        [class.user-bubble]="msg.role === 'user'"
+        [class.assistant-bubble]="msg.role === 'assistant'"
+      >
+        {{ msg.content }}
+      </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div *ngIf="isLoading" class="bubble-wrapper assistant-wrapper">
+      <div class="bubble assistant-bubble typing-indicator">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div #messagesEnd></div>
+  </div>
+
+  <!-- Input area -->
+  <div class="input-area">
+    <mat-form-field appearance="outline" class="input-field">
+      <textarea
+        matInput
+        [(ngModel)]="messageInput"
+        placeholder="Escribe un mensaje..."
+        rows="1"
+        cdkTextareaAutosize
+        cdkAutosizeMinRows="1"
+        cdkAutosizeMaxRows="4"
+        (keydown)="onKeyDown($event)"
+        [disabled]="isLoading"
+      ></textarea>
+    </mat-form-field>
+
+    <button
+      mat-icon-button
+      color="primary"
+      class="send-button"
+      (click)="sendMessage()"
+      [disabled]="isLoading || !messageInput.trim()"
+      aria-label="Enviar mensaje"
+    >
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+
+</div>

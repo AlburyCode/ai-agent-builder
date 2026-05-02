@@ -1,0 +1,94 @@
+.documents-container {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font-size: 24px;
+  }
+}
+
+.upload-card {
+  margin-bottom: 24px;
+}
+
+.upload-info {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.upload-zone {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border: 2px dashed #9c27b0;
+  border-radius: 8px;
+  background-color: #fce4ec10;
+}
+
+.upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background-color: #7b1fa2;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #6a1b9a;
+  }
+
+  mat-icon {
+    font-size: 20px;
+    height: 20px;
+    width: 20px;
+  }
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.upload-hint {
+  color: rgba(0, 0, 0, 0.54);
+  font-size: 13px;
+}
+
+.upload-progress {
+  margin-top: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.empty-message {
+  text-align: center;
+  color: rgba(0, 0, 0, 0.54);
+  margin-top: 32px;
+  font-size: 16px;
+}
+
+tr.mat-row:hover {
+  background-color: #f5f5f5;
+}
+
+td.mat-column-actions {
+  width: 60px;
+  text-align: right;
+}

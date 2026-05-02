@@ -1,0 +1,54 @@
+<div class="agent-list-container">
+  <div class="header">
+    <h2>Mis Agentes</h2>
+    <button mat-raised-button color="primary" routerLink="/agents/new">
+      <mat-icon>add</mat-icon> Nuevo Agente
+    </button>
+  </div>
+
+  <p *ngIf="agents.length === 0" class="empty-message">
+    No hay agentes. ¡Crea tu primer agente!
+  </p>
+
+  <mat-card *ngIf="agents.length > 0">
+    <table mat-table [dataSource]="agents" class="full-width">
+
+      <!-- Nombre -->
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Nombre</th>
+        <td mat-cell *matCellDef="let agent">{{ agent.name }}</td>
+      </ng-container>
+
+      <!-- Descripción -->
+      <ng-container matColumnDef="description">
+        <th mat-header-cell *matHeaderCellDef>Descripción</th>
+        <td mat-cell *matCellDef="let agent">{{ agent.description }}</td>
+      </ng-container>
+
+      <!-- Acciones -->
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Acciones</th>
+        <td mat-cell *matCellDef="let agent">
+          <button mat-icon-button [routerLink]="['/agents', agent.id, 'edit']" matTooltip="Editar">
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button mat-icon-button [routerLink]="['/agents', agent.id, 'documents']" matTooltip="Documentos">
+            <mat-icon>description</mat-icon>
+          </button>
+          <button mat-icon-button [routerLink]="['/agents', agent.id, 'chat']" matTooltip="Chat">
+            <mat-icon>chat</mat-icon>
+          </button>
+          <button mat-icon-button [routerLink]="['/agents', agent.id, 'widget']" matTooltip="Widget">
+            <mat-icon>settings</mat-icon>
+          </button>
+          <button mat-icon-button color="warn" (click)="deleteAgent(agent.id)" matTooltip="Eliminar">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </mat-card>
+</div>

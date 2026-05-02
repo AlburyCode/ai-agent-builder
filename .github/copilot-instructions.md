@@ -130,19 +130,23 @@ con este mismo stack. Aplicar en TODOS los archivos generados.
 ### 1. Hook Sequelize: `beforeValidate`, NUNCA `beforeCreate`
 
 ```typescript
-// ✅ CORRECTO
+// ✅ CORRECTO — cubre creación Y actualización
 User.addHook('beforeValidate', async (user: User) => {
   if (user.changed('password') && user.password && !user.password.startsWith('$2')) {
     user.password = await bcryptjs.hash(user.password, 10);
   }
 });
 
-// ❌ INCORRECTO — passwordHash es null cuando Sequelize valida allowNull: false
+// ❌ INCORRECTO
 User.addHook('beforeCreate', async (user: User) => { ... });
 ```
 
-**Razón**: Sequelize ejecuta el orden `beforeValidate → validate (allowNull) → beforeCreate → INSERT`.
-Si el hash está en `beforeCreate`, la validación `allowNull: false` ya ha fallado antes.
+**Razón doble** (aplica independientemente del esquema):
+
+| Escenario | Por qué `beforeValidate` |
+|-----------|--------------------------|
+| `password` VIRTUAL + `passwordHash` real | `passwordHash` es `null` durante `validate(allowNull)` si se usa `beforeCreate`; resultado: `notNull Violation` |
+| `password` columna real (esquema actual) | `beforeCreate` no se dispara en updates; una contraseña cambiada con `user.save()` quedaría en texto plano en la BD |
 
 ---
 
@@ -362,7 +366,195 @@ Route (HTTP)  →  Controller (extrae req/res)  →  Service (lógica)  →  Mod
 - Herramienta habilitada: solo `file_search` vía `tools: [{ type: 'file_search', vector_store_ids: [...] }]`. **Nunca** `code_interpreter`.
 - El campo `openaiVectorStoreId` en el modelo `Agent` puede ser `null` inicialmente. Se rellena automáticamente al subir el primer documento al agente.
 - Los `openaiFileId` de los documentos se necesitan para configurar el `vector_store` del Assistant.
-- El endpoint `/chat/message` es **público** (no lleva middleware `authenticate`). Lo usa el widget embebible sin autenticación.
+- El endpoint `/chat/message` usa `optionalAuthenticate`, **no** `authenticate`. Esto permite que el widget lo llame sin token y que el backoffice lo llame con token, grabando `userId` en la conversación en ambos casos correctamente.
+
+---
+
+### 8. `/chat/message`: `optionalAuthenticate`, NUNCA `authenticate` ni sin middleware
+
+El endpoint de chat es consumido tanto por el widget (sin JWT) como por el backoffice (con JWT). El middleware correcto es `optionalAuthenticate`: parsea el token si existe pero nunca rechaza la petición si falta.
+
+```typescript
+// ✅ CORRECTO — auth.middleware.ts
+export const optionalAuthenticate = (req: Request, _res: Response, next: NextFunction): void => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number; email: string; role: string };
+    } catch { /* token inválido — se ignora, req.user queda undefined */ }
+  }
+  next(); // siempre continúa
+};
+
+// ✅ CORRECTO — chat.routes.ts
+router.post('/message', optionalAuthenticate, chatController.sendMessage);
+
+// ✅ CORRECTO — conversation.service.ts
+// getOrCreateConversation acepta userId opcional
+export const getOrCreateConversation = async (
+  conversationId: number | undefined,
+  agentId: number,
+  userId?: number       // ← undefined si widget anónimo, número si backoffice autenticado
+): Promise<Conversation> => {
+  ...
+  return await Conversation.create({ agentId, userId: userId ?? null, messages: [] });
+};
+
+// ✅ CORRECTO — chat.controller.ts
+const conversation = await conversationService.getOrCreateConversation(
+  conversationId, agentId, req.user?.userId  // undefined si widget, número si backoffice
+);
+
+// ❌ INCORRECTO — sin middleware: req.user siempre undefined → userId nunca se graba
+router.post('/message', chatController.sendMessage);
+
+// ❌ INCORRECTO — con authenticate: el widget (sin token) recibe 401
+router.post('/message', authenticate, chatController.sendMessage);
+```
+
+**Resultado en BD:**
+| Origen | `userId` en `conversations` |
+|--------|---------------------------|
+| Widget (sin JWT) | `NULL` |
+| Backoffice (con JWT) | `<id del usuario>` |
+
+Esto permite que `GET /conversations/agent/:id` (ruta protegida con `authenticate`) filtre con `WHERE agentId=X AND userId=<token.userId>` y devuelva solo las conversaciones del usuario autenticado, nunca las anónimas del widget.
+
+---
+
+### 9. Proceso Node.js zombie — cambios de código sin efecto en el backend
+
+Si modificas código del backend y los cambios no tienen ningún efecto en las respuestas HTTP, la causa más probable es que haya **dos procesos Node.js** corriendo en el mismo puerto: el antiguo (con código obsoleto) y el nuevo (con el código correcto). El proceso antiguo gana y todas las peticiones van a él.
+
+**Diagnóstico en Windows (PowerShell):**
+
+```powershell
+# Ver qué procesos escuchan en el puerto 3000
+netstat -ano | findstr :3000
+
+# Comprobar cuándo arrancó cada proceso (el más antiguo es el zombie)
+Get-Process -Id <PID> | Select-Object StartTime
+
+# Matar el proceso antiguo
+Stop-Process -Id <PID> -Force
+```
+
+**Síntoma característico:** nodemon muestra "restarting due to changes" pero el comportamiento de la API no cambia (ej. `userId` sigue siendo `null` tras añadir `optionalAuthenticate`).
+
+**Solución rápida:** matar todos los procesos node y reiniciar:
+
+```powershell
+taskkill /f /im node.exe   # Windows
+```
+
+**Regla:** cuando un cambio de backend no se refleja en las pruebas, verificar SIEMPRE que solo hay un proceso escuchando en el puerto antes de buscar el error en el código.
+
+---
+
+### 10. Angular `ngOnInit`: nunca dejarlo vacío tras un refactor
+
+Si un componente que carga datos en `ngOnInit` se refactoriza y la llamada a la API desaparece accidentalmente, el resultado es una pantalla en blanco sin error en consola (el array `[]` es válido para Angular).
+
+```typescript
+// ❌ INCORRECTO — ngOnInit vacío tras refactor: pantalla en blanco, sin error
+ngOnInit(): void {
+  this.agentId = +this.route.snapshot.params['id'];
+  // la llamada a la API fue borrada durante el refactor
+}
+
+// ✅ CORRECTO — ngOnInit siempre carga los datos del componente
+ngOnInit(): void {
+  this.agentId = +this.route.snapshot.params['id'];
+  this.loadData();  // ← nunca olvidar esto al refactorizar
+}
+```
+
+**Regla:** después de cualquier refactor de un componente que usa datos remotos, verificar que `ngOnInit` sigue teniendo la llamada de carga de datos.
+
+---
+
+### 11. Chat viewer — aplanar TODAS las conversaciones con `flatMap`
+
+El visor de chat del backoffice debe mostrar todos los mensajes de todas las conversaciones pasadas del usuario en orden cronológico, no solo los de la más reciente.
+
+```typescript
+// ❌ INCORRECTO — solo muestra la conversación más reciente
+this.messages = conversations[0].messages;
+
+// ✅ CORRECTO — aplanar todas las conversaciones en orden cronológico (ASC)
+// El backend devuelve en DESC (más reciente primero), invertir para mostrar ASC
+const sorted = [...conversations].reverse();
+this.conversationId = conversations[0].id;  // más reciente para nuevos mensajes
+this.messages = sorted.flatMap(c => c.messages);
+```
+
+El `conversationId` apunta a la conversación más reciente (para que los mensajes nuevos se añadan a ella), pero el historial mostrado incluye todos los intercambios anteriores del usuario con ese agente.
+
+---
+
+### 12. Widget — `__AI_WIDGET_CONFIG__` tiene prioridad sobre `data-*`
+
+Cuando el backoffice abre el widget de prueba con `window.open('/widget/index.html?agentId=X&...')`, el `widget.js` debe leer los parámetros de la URL **con prioridad** sobre los atributos `data-*` del script tag. Si no, el `data-agent-id` hardcodeado en `index.html` siempre gana.
+
+**En `widget/index.html`:** exponer los query params como `window.__AI_WIDGET_CONFIG__` antes de cargar el script:
+
+```html
+<script>
+  const p = new URLSearchParams(location.search);
+  if (p.get('agentId')) {
+    window.__AI_WIDGET_CONFIG__ = {
+      agentId:  p.get('agentId'),
+      color:    p.get('color')    || '#1976d2',
+      position: p.get('position') || 'bottom-right',
+      title:    p.get('title')    || '¿En qué puedo ayudarte?'
+    };
+  }
+</script>
+<script src="/src/widget.js" data-agent-id="1" data-color="#1976d2"></script>
+```
+
+**En `widget/src/widget.js`:** dar prioridad a `__AI_WIDGET_CONFIG__` sobre los `data-*`:
+
+```javascript
+// ✅ CORRECTO — __AI_WIDGET_CONFIG__ tiene prioridad (lo envía el backoffice)
+const cfg = window.__AI_WIDGET_CONFIG__ || {};
+const agentId = parseInt(
+  cfg.agentId || currentScript.getAttribute('data-agent-id') || '1', 10
+);
+const color = cfg.color || currentScript.getAttribute('data-color') || '#1976d2';
+
+// ❌ INCORRECTO — data-agent-id siempre gana, el parámetro del backoffice se ignora
+const agentId = parseInt(currentScript.getAttribute('data-agent-id'), 10);
+```
+
+---
+
+### 13. Widget — versión de Vite según versión de Node.js
+
+Vite 6+ usa Rolldown (bundler en Rust) y requiere Node.js ≥ 20.19 o ≥ 22.12. Con versiones anteriores (ej. v20.15) falla con `Cannot find native binding (@rolldown/binding-win32-x64-msvc)`.
+
+| Node.js instalado | Vite a instalar | Comando |
+|---|---|---|
+| < 20.19 (ej. v20.15) | Vite 5.4.x | `npm install -D vite@^5.4.0` |
+| ≥ 20.19 o ≥ 22.12 | Vite 5, 6 u 8 | `npm install -D vite` |
+
+```bash
+# Verificar versión de Node antes de instalar:
+node --version
+
+# ✅ CORRECTO para Node < 20.19
+npm install -D vite@^5.4.0
+
+# ❌ INCORRECTO con Node < 20.19 — puede instalar Vite 6/8 y fallar
+npm install -D vite
+```
+
+Si ya se instaló la versión incorrecta:
+```powershell
+Remove-Item -Recurse -Force node_modules
+Remove-Item package-lock.json
+npm install -D vite@^5.4.0
+```
 
 ---
 
