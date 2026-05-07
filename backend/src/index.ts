@@ -35,17 +35,14 @@ app.get('/health', (_req, res) => {
 });
 
 // Arranque del servidor
-const initDb = async (): Promise<void> => {
-  await sequelize.authenticate();
-  await sequelize.sync({ alter: true });
-  console.log('✅ Base de datos sincronizada');
-};
-
-// En Vercel (serverless) no se llama a app.listen() — Vercel usa el export default
-// En local sí arrancamos el servidor HTTP completo
+// En Vercel (serverless): no llamar a listen() ni a sync().
+// Sequelize abre la conexión lazy en la primera query.
+// En local: sync() crea/altera las tablas y arranca el servidor HTTP.
 if (!process.env.VERCEL) {
-  initDb()
+  sequelize.authenticate()
+    .then(() => sequelize.sync({ alter: true }))
     .then(() => {
+      console.log('✅ Base de datos sincronizada');
       app.listen(PORT, () => {
         console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
       });
@@ -54,11 +51,6 @@ if (!process.env.VERCEL) {
       console.error('❌ Error al arrancar el servidor:', error);
       process.exit(1);
     });
-} else {
-  // En Vercel: sincronizar la BD en el cold start sin llamar a listen()
-  initDb().catch((error) => {
-    console.error('❌ Error al sincronizar la base de datos:', error);
-  });
 }
 
 export default app;
