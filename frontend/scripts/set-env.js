@@ -10,16 +10,18 @@
 const fs   = require('fs');
 const path = require('path');
 
-const apiUrl = process.env.API_URL || 'http://localhost:3000';
+const apiUrl    = process.env.API_URL    || 'http://localhost:3000';
+const widgetUrl = process.env.WIDGET_URL || 'http://localhost:5173';
 
 const content = `// Este fichero se genera automáticamente antes del build mediante scripts/set-env.js
 // No editar manualmente — los cambios se sobreescriben en cada npm run build
 export const environment = {
   production: true,
-  apiUrl: '${apiUrl}'
+  apiUrl: '${apiUrl}',
+  widgetUrl: '${widgetUrl}'
 };
 `;
 
 const targetPath = path.join(__dirname, '..', 'src', 'environments', 'environment.prod.ts');
 fs.writeFileSync(targetPath, content, 'utf8');
-console.log('✅ environment.prod.ts generado con API_URL:', apiUrl);
+console.log('✅ environment.prod.ts generado con API_URL:', apiUrl, '| WIDGET_URL:', widgetUrl);

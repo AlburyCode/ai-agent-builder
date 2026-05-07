@@ -3,7 +3,6 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
 import sequelize from './config/database';
 import './models/index'; // Registrar modelos y asociaciones
 import apiRouter from './routes/api.router';
@@ -22,9 +21,6 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-
-// Servir el widget compilado desde /widget.js
-app.use('/widget.js', express.static(path.join(__dirname, '../../widget/dist/widget.js')));
 
 // Rutas (todas gestionadas en api.router.ts)
 app.use(apiRouter);

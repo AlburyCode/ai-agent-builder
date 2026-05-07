@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { RouterLink } from '@angular/router';
+import { environment } from '../../../environments/environment';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
@@ -55,7 +56,7 @@ export class WidgetConfigComponent implements OnInit {
     const { primaryColor, position, title } = this.form.value;
     this.snippetCode =
 `<script
-  src="http://localhost:5173/widget.js"
+  src="${environment.widgetUrl}/widget.js"
   data-agent-id="${this.agentId}"
   data-color="${primaryColor}"
   data-position="${position}"
@@ -77,6 +78,6 @@ export class WidgetConfigComponent implements OnInit {
       color: primaryColor,
       position,
     });
-    window.open(`http://localhost:5173?${params.toString()}`, '_blank');
+    window.open(`${environment.widgetUrl}?${params.toString()}`, '_blank');
   }
 }
