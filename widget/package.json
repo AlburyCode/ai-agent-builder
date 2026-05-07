@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "vite build"
+    "build": "vite build && node scripts/copy-html.js"
   },
   "keywords": [],
   "author": "",

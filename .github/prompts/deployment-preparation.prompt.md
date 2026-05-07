@@ -121,8 +121,20 @@ DB_PASSWORD=
 DB_SSL=false
 JWT_SECRET=cambia_esto_por_un_secreto_seguro
 OPENAI_API_KEY=sk-...
-FRONTEND_URL=http://localhost:4200
+FRONTEND_URL=http://localhost:4200,http://localhost:5173
 ```
+
+> `http://localhost:5173` permite que el widget dev server pase el CORS del backend en local.
+
+### 1.5 Instalar tipos de TypeScript para pg
+
+Ejecutar en `backend/`:
+
+```bash
+npm i --save-dev @types/pg
+```
+
+> Sin este paquete `import pg from 'pg'` en `database.ts` falla en TypeScript con `TS7016: Could not find a declaration file for module 'pg'`.
 
 ### 1.5 `backend/src/config/schema.sql` (crear tablas en producción)
 Crea este archivo para ejecutarlo manualmente en el SQL Editor de Neon/Supabase:
@@ -256,17 +268,61 @@ Busca en `frontend/src/` cualquier aparición de `http://localhost:5173` o `http
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 ```
 
-### 3.2 `widget/.env`
+### 3.2 `widget/scripts/copy-html.js` (post-build: genera `dist/index.html`)
+
+Vite en modo `lib` no emite `index.html`. Este script lo copia y ajusta la ruta del script:
+
+```js
+const fs   = require('fs');
+const path = require('path');
+
+const src  = path.join(__dirname, '..', 'index.html');
+const dest = path.join(__dirname, '..', 'dist', 'index.html');
+
+let html = fs.readFileSync(src, 'utf8');
+html = html.replace('type="module"\n    src="/src/widget.js"', 'src="/widget.js"');
+html = html.replace('type="module" src="/src/widget.js"', 'src="/widget.js"');
+html = html.replace('src="/src/widget.js"', 'src="/widget.js"');
+
+fs.writeFileSync(dest, html, 'utf8');
+console.log('✅ dist/index.html generado para producción');
+```
+
+### 3.3 `widget/package.json` — actualizar script build
+
+```json
+"build": "vite build && node scripts/copy-html.js"
+```
+
+### 3.4 `widget/.env`
 ```env
 VITE_BACKEND_URL=http://localhost:3000
 ```
 
-### 3.3 `widget/.env.example`
+### 3.5 `widget/.env.example`
 ```env
 VITE_BACKEND_URL=http://localhost:3000
 ```
 
-### 3.4 `widget/vercel.json`
+### 3.6 `widget/index.html` — añadir `type="module"` al script tag
+
+El script tag que carga el widget en el `index.html` de prueba **debe** tener `type="module"` para que Vite procese `import.meta.env` durante el dev server:
+
+```html
+<script
+  type="module"
+  src="/src/widget.js"
+  data-agent-id="1"
+  data-color="#1976d2"
+  data-position="bottom-right"
+  data-title="¿En qué puedo ayudarte?">
+</script>
+```
+
+> Sin `type="module"` el navegador lanza `Uncaught SyntaxError: Cannot use 'import.meta' outside a module`.  
+> El build de producción (`npm run build`) genera un IIFE que no usa `import.meta`, por lo que esto solo afecta al desarrollo local.
+
+### 3.7 `widget/vercel.json`
 ```json
 {
   "headers": [
@@ -290,6 +346,11 @@ Después de aplicar todos los cambios, comprueba que no hay errores TypeScript e
 - `backend/src/index.ts`
 - `frontend/src/environments/environment.ts`
 - Cualquier componente que importe `environment`
+
+Verifica también que `@types/pg` está instalado en `backend/`:
+```bash
+cd backend && npm ls @types/pg
+```
 
 ---
 

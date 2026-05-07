@@ -101,13 +101,19 @@ backend/src/config/schema.sql
 | `Please install pg package manually` | ncc (bundler de `@vercel/node`) no puede trazar el `require('pg')` dinámico de Sequelize | Añadir `"bundle": false` en `vercel.json` + pasar `dialectModule: pg` a Sequelize |
 | `FUNCTION_INVOCATION_FAILED` por timeout | `sequelize.sync({ alter: true })` se ejecutaba en cada cold start serverless | En Vercel no llamar a `sync()` — solo en local con `if (!process.env.VERCEL)` |
 | `connection is insecure (try using sslmode=require)` | Neon/Supabase requieren SSL obligatoriamente | Añadir `dialectOptions: { ssl: { require: true } }` controlado por `DB_SSL` env var |
+| `TS7016: Could not find a declaration file for module 'pg'` (local) | `@types/pg` no está instalado — TypeScript no tiene tipos para `import pg from 'pg'` | `npm i --save-dev @types/pg` en `backend/` |
+| `404 NOT_FOUND` en `https://tu-widget.vercel.app/` | Vite en modo `lib` solo genera `widget.js` en `dist/` — no incluye `index.html` | Añadir script de post-build `scripts/copy-html.js` que copia `index.html` a `dist/` |
 
 ### 2.4 Cómo funciona en local
 
 1. Copia `backend/.env.example` como `backend/.env`.
 2. Rellena las variables con tus valores locales.
 3. Añade `DB_SSL=false` (tu PostgreSQL local no necesita SSL).
-4. Arranca con `npm run dev`.
+4. En `FRONTEND_URL` incluye también el widget para que las peticiones del dev server pasen el CORS:
+   ```
+   FRONTEND_URL=http://localhost:4200,http://localhost:5173
+   ```
+5. Arranca con `npm run dev`.
 
 ---
 
@@ -181,7 +187,7 @@ El widget se sirve como **sitio estático** desde su propio proyecto Vercel — 
 |---|---|---|
 | `VITE_BACKEND_URL` | URL del backend en producción | `https://tu-backend.vercel.app` |
 
-### 4.3 `widget/vercel.json`
+### 4.4 `widget/vercel.json`
 
 ```json
 {
@@ -199,7 +205,7 @@ El widget se sirve como **sitio estático** desde su propio proyecto Vercel — 
 
 > `Access-Control-Allow-Origin: *` es obligatorio para que webs externas puedan cargar el script.
 
-### 4.4 Cómo embeber en una web externa
+### 4.5 Cómo embeber en una web externa
 
 ```html
 <script
@@ -211,10 +217,18 @@ El widget se sirve como **sitio estático** desde su propio proyecto Vercel — 
 </script>
 ```
 
-### 4.5 Cómo funciona en local
+### 4.6 Cómo funciona en local
 
 1. Copia `widget/.env.example` como `widget/.env` (ya incluye `VITE_BACKEND_URL=http://localhost:3000`).
 2. `npm run dev` para desarrollo, `npm run build` para compilar.
+
+> **Problema local conocido**: `Uncaught SyntaxError: Cannot use 'import.meta' outside a module`  
+> **Causa**: el script en `widget/index.html` no tiene `type="module"`, por lo que el navegador no reconoce `import.meta.env`  
+> **Solución**: el script tag de `widget/index.html` debe llevar `type="module"`:
+> ```html
+> <script type="module" src="/src/widget.js" data-agent-id="1" ...></script>
+> ```
+> Esto solo afecta al `index.html` de desarrollo — el build de producción genera un IIFE sin `import.meta`.
 
 ---
 
@@ -246,8 +260,10 @@ DB_PASSWORD=
 DB_SSL=false          ← SOLO en local; NO añadir en Vercel
 JWT_SECRET=cambia_esto_por_un_secreto_seguro
 OPENAI_API_KEY=sk-...
-FRONTEND_URL=http://localhost:4200
+FRONTEND_URL=http://localhost:4200,http://localhost:5173
 ```
+
+> Incluir `http://localhost:5173` en local permite que el widget (dev server de Vite) pueda hacer peticiones al backend sin ser bloqueado por CORS.
 
 ### `frontend/` — solo en Vercel (no hay `.env` en Angular)
 
