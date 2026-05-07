@@ -2,5 +2,5 @@
 // No editar manualmente — los cambios se sobreescriben en cada npm run build
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:3000'
+  apiUrl: 'https://ai-agent-builder-lilac.vercel.app'
 };
