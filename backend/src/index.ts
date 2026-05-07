@@ -12,7 +12,15 @@ const app = express();
 const PORT = process.env.PORT ?? 3000;
 
 // Middlewares
-app.use(cors());
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200').split(',').map(s => s.trim());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir peticiones sin origen (curl, Postman, widget IIFE en mismo dominio)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Servir el widget compilado desde /widget.js
@@ -27,20 +35,30 @@ app.get('/health', (_req, res) => {
 });
 
 // Arranque del servidor
-const start = async (): Promise<void> => {
-  try {
-    await sequelize.authenticate();
-    await sequelize.sync({ alter: true });
-    console.log('✅ Base de datos sincronizada');
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('❌ Error al arrancar el servidor:', error);
-    process.exit(1);
-  }
+const initDb = async (): Promise<void> => {
+  await sequelize.authenticate();
+  await sequelize.sync({ alter: true });
+  console.log('✅ Base de datos sincronizada');
 };
 
-start();
+// En Vercel (serverless) no se llama a app.listen() — Vercel usa el export default
+// En local sí arrancamos el servidor HTTP completo
+if (!process.env.VERCEL) {
+  initDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error('❌ Error al arrancar el servidor:', error);
+      process.exit(1);
+    });
+} else {
+  // En Vercel: sincronizar la BD en el cold start sin llamar a listen()
+  initDb().catch((error) => {
+    console.error('❌ Error al sincronizar la base de datos:', error);
+  });
+}
 
 export default app;

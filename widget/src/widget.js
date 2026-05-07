@@ -1,5 +1,7 @@
 (function () {
-  const BACKEND_URL = 'http://localhost:3000';
+  // En local: valor de .env (VITE_BACKEND_URL=http://localhost:3000)
+  // En Vercel: variable de entorno VITE_BACKEND_URL del proyecto widget
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
   // --- Config: __AI_WIDGET_CONFIG__ tiene prioridad sobre data-* ---
   const cfg = window.__AI_WIDGET_CONFIG__ || {};
