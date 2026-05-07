@@ -103,6 +103,7 @@ backend/src/config/schema.sql
 | `connection is insecure (try using sslmode=require)` | Neon/Supabase requieren SSL obligatoriamente | Añadir `dialectOptions: { ssl: { require: true } }` controlado por `DB_SSL` env var |
 | `TS7016: Could not find a declaration file for module 'pg'` (local) | `@types/pg` no está instalado — TypeScript no tiene tipos para `import pg from 'pg'` | `npm i --save-dev @types/pg` en `backend/` |
 | `404 NOT_FOUND` en `https://tu-widget.vercel.app/` | Vite en modo `lib` solo genera `widget.js` en `dist/` — no incluye `index.html` | Añadir script de post-build `scripts/copy-html.js` que copia `index.html` a `dist/` |
+| CORS bloqueado cuando el widget llama al backend | El widget puede estar embebido en cualquier dominio — no se puede enumerar todos los orígenes en `FRONTEND_URL` | Aplicar `cors({ origin: '*' })` solo al endpoint `POST /chat/message` en `chat.routes.ts` |
 
 ### 2.4 Cómo funciona en local
 

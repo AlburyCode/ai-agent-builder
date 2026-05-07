@@ -39,7 +39,29 @@ const sequelize = new Sequelize({
 export default sequelize;
 ```
 
-### 1.2 `backend/src/index.ts`
+### 1.2 `backend/src/routes/chat.routes.ts` — CORS abierto para el widget
+
+El widget puede estar embebido en **cualquier dominio**, por lo que `FRONTEND_URL` no puede enumerar todos los orígenes posibles. La solución es aplicar `cors({ origin: '*' })` solo al endpoint público `/chat/message`:
+
+```typescript
+import { Router } from 'express';
+import cors from 'cors';
+import * as chatController from '../controllers/chat.controller';
+import { optionalAuthenticate } from '../middlewares/auth.middleware';
+
+const router = Router();
+
+// CORS abierto solo para este endpoint: el widget puede estar en cualquier dominio
+const openCors = cors({ origin: '*' });
+
+router.post('/message', openCors, optionalAuthenticate, chatController.sendMessage);
+
+export default router;
+```
+
+> El resto de la API sigue protegida por el CORS restrictivo global (`FRONTEND_URL`).
+
+### 1.3 `backend/src/index.ts`
 - CORS dinámico con `FRONTEND_URL` (nunca `origin: '*'`).
 - `app.listen()` y `sequelize.sync()` SOLO cuando `!process.env.VERCEL`.
 - NO importar `path` ni servir archivos estáticos del widget (el widget tiene su propio proyecto).
