@@ -12,14 +12,20 @@ const PORT = process.env.PORT ?? 3000;
 
 // Middlewares
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200').split(',').map(s => s.trim());
-app.use(cors({
-  origin: (origin, callback) => {
-    // Permitir peticiones sin origen (curl, Postman, widget IIFE en mismo dominio)
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS bloqueado para el origen: ${origin}`));
-  },
-  credentials: true
-}));
+// /chat/* es consumido por el widget embebido en cualquier dominio → CORS abierto
+// El resto de la API solo acepta orígenes de FRONTEND_URL
+app.use((req, res, next) => {
+  if (req.path.startsWith('/chat')) {
+    return cors({ origin: '*' })(req, res, next);
+  }
+  return cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+    },
+    credentials: true,
+  })(req, res, next);
+});
 app.use(express.json());
 
 // Rutas (todas gestionadas en api.router.ts)
