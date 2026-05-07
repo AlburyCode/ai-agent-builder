@@ -1,0 +1,65 @@
+<div class="conversations-container">
+  <!-- Cabecera -->
+  <div class="header">
+    <button mat-icon-button [routerLink]="['/agents']" matTooltip="Volver a agentes">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h2>Historial de conversaciones</h2>
+  </div>
+
+  <!-- Badges de resumen -->
+  <div class="summary-badges" *ngIf="!isLoading && conversations.length > 0">
+    <span class="badge badge-widget">
+      <mat-icon>public</mat-icon>
+      {{ widgetConversations.length }} widget
+    </span>
+    <span class="badge badge-backoffice">
+      <mat-icon>lock</mat-icon>
+      {{ privateConversations.length }} backoffice
+    </span>
+  </div>
+
+  <!-- Spinner -->
+  <div class="spinner-container" *ngIf="isLoading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <!-- Mensaje vacío -->
+  <p class="empty-message" *ngIf="!isLoading && conversations.length === 0">
+    No hay conversaciones registradas para este agente.
+  </p>
+
+  <!-- Lista de conversaciones -->
+  <mat-accordion multi *ngIf="!isLoading && conversations.length > 0">
+    <mat-expansion-panel
+      *ngFor="let conv of conversations; let i = index"
+      [ngClass]="conv.userId === null ? 'panel-widget' : 'panel-backoffice'">
+
+      <mat-expansion-panel-header>
+        <mat-panel-title class="panel-title">
+          <span class="conv-number">#{{ i + 1 }}</span>
+          <mat-chip [ngClass]="conv.userId === null ? 'chip-widget' : 'chip-backoffice'">
+            <mat-icon>{{ conv.userId === null ? 'public' : 'lock' }}</mat-icon>
+            {{ conv.userId === null ? 'Widget público' : 'Backoffice' }}
+          </mat-chip>
+        </mat-panel-title>
+        <mat-panel-description class="panel-description">
+          <span>{{ conv.messages.length }} mensajes</span>
+          <span>{{ conv.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <!-- Mensajes -->
+      <div class="messages-list">
+        <div
+          *ngFor="let msg of conv.messages"
+          class="message-bubble"
+          [ngClass]="msg.role === 'user' ? 'bubble-user' : 'bubble-assistant'">
+          <span class="role-label">{{ msg.role === 'user' ? 'Usuario' : 'Asistente' }}</span>
+          <p class="message-content">{{ msg.content }}</p>
+        </div>
+      </div>
+
+    </mat-expansion-panel>
+  </mat-accordion>
+</div>

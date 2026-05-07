@@ -1,0 +1,171 @@
+.conversations-container {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+}
+
+/* Badges de resumen */
+.summary-badges {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.badge-widget {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.badge-backoffice {
+  background-color: #f3e5f5;
+  color: #6a1b9a;
+}
+
+/* Spinner */
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.empty-message {
+  text-align: center;
+  color: #757575;
+  padding: 40px 0;
+}
+
+/* Paneles de expansión */
+mat-expansion-panel {
+  margin-bottom: 8px;
+  border-left: 4px solid transparent;
+}
+
+.panel-widget {
+  border-left-color: #1565c0;
+}
+
+.panel-backoffice {
+  border-left-color: #6a1b9a;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.conv-number {
+  font-weight: 600;
+  color: #424242;
+  min-width: 32px;
+}
+
+.panel-description {
+  display: flex;
+  gap: 24px;
+  color: #757575;
+  font-size: 0.875rem;
+}
+
+/* Chips */
+mat-chip.chip-widget {
+  background-color: #e3f2fd !important;
+  color: #1565c0 !important;
+
+  mat-icon {
+    color: #1565c0 !important;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+mat-chip.chip-backoffice {
+  background-color: #f3e5f5 !important;
+  color: #6a1b9a !important;
+
+  mat-icon {
+    color: #6a1b9a !important;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* Burbujas de mensajes */
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.message-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 12px;
+
+  .role-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .message-content {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+  }
+}
+
+.bubble-user {
+  align-self: flex-start;
+  background-color: #e3f2fd;
+  color: #0d47a1;
+
+  .role-label {
+    color: #1565c0;
+  }
+}
+
+.bubble-assistant {
+  align-self: flex-end;
+  background-color: #e8f5e9;
+  color: #1b5e20;
+
+  .role-label {
+    color: #2e7d32;
+  }
+}

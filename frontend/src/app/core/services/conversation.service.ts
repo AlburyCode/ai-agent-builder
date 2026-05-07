@@ -12,4 +12,8 @@ export class ConversationService {
   getByAgent(agentId: number): Observable<Conversation[]> {
     return this.api.get<Conversation[]>(`/conversations/agent/${agentId}`);
   }
+
+  getAllByAgent(agentId: number): Observable<Conversation[]> {
+    return this.api.get<Conversation[]>(`/conversations/agent/${agentId}/all`);
+  }
 }

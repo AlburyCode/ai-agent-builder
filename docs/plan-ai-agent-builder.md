@@ -959,6 +959,93 @@ router.use('/chat', chatRoutes)  // sin authenticate — la usa el widget sin to
 
 ---
 
+### 💡 CONCEPTO — Identificación del origen: widget público vs backoffice privado
+
+
+**El campo `userId` como discriminador de origen**
+
+```
+  tabla conversations
+  ────────────────────────────────────────────────────────────────────────
+  id │ agentId │ userId │ messages             │ origen identificado
+  ───┼─────────┼────────┼──────────────────────┼────────────────────────
+  10 │    3    │   1    │ [{role:'user',...}]   │ 🔒 Backoffice (userId=1)
+  11 │    3    │   1    │ [{role:'user',...}]   │ 🔒 Backoffice (userId=1)
+  12 │    3    │  NULL  │ [{role:'user',...}]   │ 🌐 Widget público
+  13 │    3    │  NULL  │ [{role:'user',...}]   │ 🌐 Widget público
+  14 │    3    │  NULL  │ [{role:'user',...}]   │ 🌐 Widget público
+  ────────────────────────────────────────────────────────────────────────
+
+  userId === null  →  Widget público (anónimo)
+  userId !== null  →  Backoffice (usuario autenticado)
+```
+
+---
+
+### 💡 CONCEPTO — Nuevo endpoint: `GET /conversations/agent/:id/all`
+
+> "El endpoint existente `GET /conversations/agent/:id` filtra por `WHERE agentId=X AND userId=<token>`. Perfecto para el chat de prueba del backoffice: solo tus conversaciones.
+>
+> Pero el creador del agente también necesita ver **todas** las conversaciones: las suyas de prueba y las de todos los visitantes anónimos del widget.
+
+**Comparativa de los dos endpoints**
+
+```
+  GET /conversations/agent/:id              GET /conversations/agent/:id/all
+  ─────────────────────────────────────     ─────────────────────────────────────────
+  Auth: authenticate (obligatorio)          Auth: authenticate (obligatorio)
+
+  SQL generado:                             SQL generado:
+  SELECT * FROM conversations               SELECT * FROM conversations
+  WHERE agentId = :id                       WHERE agentId = :id
+  AND userId = :tokenUserId                 -- (sin filtro de userId)
+
+  Devuelve:                                 Verifica primero:
+  Solo las conversaciones del              SELECT * FROM agents
+  usuario autenticado                       WHERE id = :id AND userId = :tokenUserId
+  (sus pruebas en el backoffice)            → Si no existe: 403 Forbidden
+
+                                            Devuelve:
+                                            TODAS las conversaciones (widget + backoffice)
+```
+
+---
+
+### 🤖 PROMPT COPILOT #15 — Endpoint de historial completo (backend)
+
+```
+Necesito un nuevo endpoint en el backend que devuelva TODAS las conversaciones
+de un agente (incluyendo las anónimas del widget) solo si el agente pertenece
+al usuario autenticado que hace la petición.
+
+1. En /backend/src/services/conversation.service.ts, añade la función:
+
+   getAllConversationsByAgent(agentId: number, requestingUserId: number):
+   - Importa el modelo Agent además de Conversation
+   - Busca el agente con Agent.findOne({ where: { id: agentId, userId: requestingUserId } })
+   - Si no existe, lanza new Error('Agente no encontrado o no autorizado')
+   - Si existe, retorna Conversation.findAll({ where: { agentId }, order: [['createdAt', 'ASC']] })
+   - No filtra por userId en conversations — devuelve todas (null y no null)
+
+2. En /backend/src/controllers/conversation.controller.ts, añade el handler:
+
+   getAllByAgent:
+   - Extrae agentId de req.params (convertir a número con +)
+   - Extrae userId de req.user!.userId
+   - Llama a conversationService.getAllConversationsByAgent(agentId, userId)
+   - Si el error es 'Agente no encontrado o no autorizado', responde 403
+   - Si hay otro error, responde 500
+   - En éxito, responde 200 con el array de conversaciones
+
+3. En /backend/src/routes/conversation.routes.ts, añade:
+   GET /agent/:agentId/all → conversationController.getAllByAgent
+   (la ruta ya está protegida con authenticate en api.router.ts)
+
+La ruta existente GET /agent/:agentId no debe modificarse.
+```
+
+---
+
 ## 🔷 BLOQUE 5: FRONTEND ANGULAR — SETUP
 
 
@@ -1336,6 +1423,120 @@ const conversation = await conversationService.getOrCreateConversation(
   conversationId, agentId, req.user?.userId  // undefined si es widget anónimo
 );
 ```
+
+---
+
+### 💡 CONCEPTO TEÓRICO — ¿Por qué separar el visor de chat del historial de conversaciones?
+
+**Dos pantallas, dos propósitos**
+
+```
+  ChatViewerComponent                   ConversationsHistoryComponent
+  ──────────────────────────────────    ──────────────────────────────────────────
+  Propósito: PROBAR el agente           Propósito: SUPERVISAR las conversaciones
+
+  Interactivo: escribe mensajes         Solo lectura: navega el historial
+  Solo tus conversaciones de prueba     TODAS las conversaciones del agente
+  (userId = tu ID de usuario)           (userId = cualquier valor, incluido null)
+
+  Ruta: /agents/:id/chat                Ruta: /agents/:id/conversations
+  Icono en tabla: chat                  Icono en tabla: forum
+```
+
+---
+
+### 🤖 PROMPT COPILOT #16 — Componente ConversationsHistory (frontend)
+
+```
+Crea el componente de historial de conversaciones en el backoffice Angular.
+
+1. Actualiza /frontend/src/app/core/models/index.ts:
+   - Añade userId: number | null al interfaz Conversation (actualmente no tiene ese campo)
+
+2. Actualiza /frontend/src/app/core/services/conversation.service.ts:
+   - Añade el método getAllByAgent(agentId: number): Observable<Conversation[]>
+     que hace GET /conversations/agent/${agentId}/all
+
+3. Crea ConversationsHistoryComponent en /frontend/src/app/features/conversations/:
+   - conversations-history.component.ts:
+     * standalone: true
+     * Imports: NgFor, NgIf, NgClass, DatePipe, RouterLink,
+       MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
+       MatExpansionModule, MatProgressSpinnerModule, MatTooltipModule
+     * Lee agentId de ActivatedRoute params
+     * En ngOnInit: llama a conversationService.getAllByAgent(agentId)
+     * Propiedades calculadas:
+       - widgetConversations: conversaciones donde userId === null
+       - privateConversations: conversaciones donde userId !== null
+     * Propiedad isLoading: boolean
+
+   - conversations-history.component.html:
+     * Cabecera con botón de volver a /agents y título "Historial de conversaciones"
+     * Badges de resumen: "X widget" (azul) y "X backoffice" (morado) con iconos public/lock
+     * Spinner mientras isLoading
+     * Mensaje de estado vacío si no hay conversaciones
+     * mat-accordion multi con un mat-expansion-panel por conversación:
+       - En el panel header: número de conversación, chip de origen (Widget público / Backoffice)
+         con color diferente según userId === null, número de mensajes, fecha de creación
+       - El panel tiene borde izquierdo de color diferente según el origen (azul / morado)
+         usando [ngClass]
+       - Dentro del panel: lista de mensajes con burbuja visual para usuario y asistente
+
+   - conversations-history.component.scss:
+     * Badges de origen con colores: azul (#e3f2fd / #1565c0) para widget, morado (#f3e5f5 / #6a1b9a) para backoffice
+     * Panel con borde izquierdo de color
+     * Burbujas de mensajes: usuario alineado a la izquierda con fondo azul claro,
+       asistente alineado a la derecha con fondo verde claro
+
+4. Añade la ruta en /frontend/src/app/app.routes.ts:
+   path: 'agents/:id/conversations'
+   loadComponent: ConversationsHistoryComponent
+   canActivate: [authGuard]
+
+5. En /frontend/src/app/features/agents/agent-list/agent-list.component.html,
+   añade un botón icono entre "Documentos" y "Chat":
+   <button mat-icon-button [routerLink]="['/agents', agent.id, 'conversations']" matTooltip="Conversaciones">
+     <mat-icon>forum</mat-icon>
+   </button>
+
+   También añade MatTooltipModule a los imports del AgentListComponent.
+```
+
+---
+
+### 💡 RESUMEN — Flujo completo del historial de conversaciones
+
+```
+  Usuario autenticado hace clic en el icono "forum" (Conversaciones) de un agente
+                │
+                ▼
+  Angular navega a /agents/3/conversations
+  ConversationsHistoryComponent.ngOnInit()
+                │
+                ▼
+  GET /conversations/agent/3/all
+  Authorization: Bearer <JWT>
+                │
+                ▼  Backend
+  authenticate middleware → extrae userId del token
+  conversationService.getAllConversationsByAgent(3, userId)
+                │
+                ├── Agent.findOne({ id: 3, userId }) → ¿existe? → si no: 403
+                │
+                └── Conversation.findAll({ where: { agentId: 3 } })
+                    (SIN filtro de userId → devuelve todas)
+                │
+                ▼
+  Angular recibe el array de conversaciones
+                │
+                ├── conv.userId === null  →  chip "Widget público"   (azul)
+                └── conv.userId !== null  →  chip "Backoffice"       (morado)
+
+  El usuario puede expandir cada conversación para leer el hilo completo
+  de mensajes tal como ocurrió en tiempo real.
+```
+
+---
 
 ### 🤖 PROMPT #11 — Configuración del widget y snippet
 
@@ -1873,6 +2074,8 @@ El componente `WidgetConfigComponent` ya genera este snippet automáticamente. S
                                         ✅ Funciona en cualquier navegador
 ```
 
+
+---
 
 ### 💡 CONCEPTO TEÓRICO FINAL — ¿Qué falta para producción?
 

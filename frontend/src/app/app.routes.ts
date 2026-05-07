@@ -49,5 +49,11 @@ export const routes: Routes = [
       import('./features/widget-config/widget-config.component').then(m => m.WidgetConfigComponent),
     canActivate: [authGuard]
   },
+  {
+    path: 'agents/:id/conversations',
+    loadComponent: () =>
+      import('./features/conversations/conversations-history.component').then(m => m.ConversationsHistoryComponent),
+    canActivate: [authGuard]
+  },
   { path: '**', redirectTo: 'login' }
 ];

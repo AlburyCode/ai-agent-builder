@@ -31,6 +31,7 @@ export interface ChatMessage {
 export interface Conversation {
   id: number;
   agentId: number;
+  userId: number | null;
   messages: ChatMessage[];
   createdAt: string;
 }

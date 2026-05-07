@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import Conversation from '../models/Conversation';
+import Agent from '../models/Agent';
 
 export const getConversationsByAgentAndUser = async (
   agentId: number,
@@ -23,6 +24,15 @@ export const getOrCreateConversation = async (
     if (existing) return existing;
   }
   return await Conversation.create({ agentId, userId: userId ?? null, messages: [] });
+};
+
+export const getAllConversationsByAgent = async (
+  agentId: number,
+  requestingUserId: number
+): Promise<Conversation[]> => {
+  const agent = await Agent.findOne({ where: { id: agentId, userId: requestingUserId } });
+  if (!agent) throw new Error('Agente no encontrado o no autorizado');
+  return await Conversation.findAll({ where: { agentId }, order: [['createdAt', 'ASC']] });
 };
 
 export const addMessage = async (

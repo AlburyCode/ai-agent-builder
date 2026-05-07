@@ -5,6 +5,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AgentService } from '../../../core/services/agent.service';
 import { Agent } from '../../../core/models';
 
@@ -16,6 +17,7 @@ import { Agent } from '../../../core/models';
     MatButtonModule,
     MatIconModule,
     MatCardModule,
+    MatTooltipModule,
     RouterLink,
     AsyncPipe,
     NgIf
