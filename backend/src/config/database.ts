@@ -13,6 +13,12 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || '',
   logging: false,
+  dialectOptions: process.env.DB_SSL === 'false' ? {} : {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+  },
 });
 
 export default sequelize;
